@@ -2,7 +2,9 @@
 
 ## Initial Setup
 
-TODO
+1. Install bun if you haven't already (follow the installation guide [here](https://bun.sh/docs/installation))
+2. Open the workspace (if you're using vscode)
+3. Run `bun install`
 
 ## Setup for Each Day
 
@@ -15,5 +17,5 @@ TODO
 2. Run:
 
     ```bash
-    TODO
+    bun run --watch <file-name>.ts
     ```

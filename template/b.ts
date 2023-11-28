@@ -1,3 +1,3 @@
-export {};
+import fs from 'fs';
 
-const input = await Deno.readTextFile('./input.txt');
+const input = await fs.readFileSync('./input.txt', 'utf-8');
