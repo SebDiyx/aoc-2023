@@ -1,3 +1,3 @@
 import fs from 'fs';
 
-const input = await fs.readFileSync('./input.txt', 'utf-8');
+const input = await fs.readFileSync('./test-input.txt', 'utf-8');
