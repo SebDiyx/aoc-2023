@@ -10,7 +10,7 @@
         "[typescript]": {
             "editor.defaultFormatter": "esbenp.prettier-vscode"
         },
-        "typescript.validate.enable": false,
-        "javascript.validate.enable": false
+        "typescript.validate.enable": true,
+        "typescript.tsdk": "node_modules/typescript/lib"
     }
 }
