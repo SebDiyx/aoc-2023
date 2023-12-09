@@ -1,50 +1,55 @@
 import fs from 'fs';
 
-const input = await fs.readFileSync('./input.txt', 'utf-8');
+type Card = {
+    id: number;
+    winningNumbers: number[];
+    yourNumbers: number[];
+    winningPoints: number;
+};
+const cardsCache = new Map<number, number>();
 
-const pointsCache = new Map<number, number>();
-const countMap = new Map<number, number>();
-
-const cards = input.split('\n');
-const cardsStack = [...cards];
-let totalCards = 0;
-
-while (cardsStack.length > 0) {
-    const card = cardsStack.shift()!;
-
-    const [cardId, numbers] = card.replace('Card ', '').trim().split(': ');
-    const cardNum = parseInt(cardId);
-
-    const [winning, yours] = numbers.split(' | ').map((nums) =>
+function getCardFromInputLine(line: string): Card {
+    const [cardId, numbers] = line.replace('Card ', '').trim().split(': ');
+    const id = parseInt(cardId);
+    const [winningNumbers, yourNumbers] = numbers.split(' | ').map((nums) =>
         nums
             .trim()
             .split(' ')
             .filter(Boolean)
             .map((num) => parseInt(num)),
     );
-
-    const numCards =
-        pointsCache.get(cardNum) ??
-        yours.reduce((total, num) => {
-            if (winning.includes(num)) return total + 1;
-            return total;
-        }, 0);
-    totalCards += numCards;
-    if (!pointsCache.has(cardNum)) {
-        pointsCache.set(cardNum, numCards);
-    }
-
-    cardsStack.unshift(...cards.slice(cardNum, cardNum + numCards));
-    for (let ii = cardNum + 1; ii <= cardNum + numCards; ii++) {
-        console.log(cardNum, ii);
-
-        const currCount = countMap.get(ii) ?? 0;
-        countMap.set(ii, currCount + 1);
-    }
-    console.log(card);
+    const winningPoints = yourNumbers.reduce((total, num) => {
+        if (winningNumbers.includes(num)) return total + 1;
+        return total;
+    }, 0);
+    return { id, winningNumbers, yourNumbers, winningPoints };
 }
 
-console.log(totalCards);
+function processCard(card: Card, allCards: readonly Card[]) {
+    // Initialise our card count to 1 as it's the current card
+    let numCards = 1;
 
-// console.log(pointsCache);
-// console.log(countMap);
+    // Each winning point on the card, we need to copy that number of cards after this one
+    // e.g. Card 1 has 3 winning points -> we need to copy cards 2, 3, 4
+    for (let i = card.id; i < card.id + card.winningPoints; i++) {
+        const additionalCard = allCards[i];
+        if (!additionalCard) break;
+        if (cardsCache.has(additionalCard.id)) {
+            numCards += cardsCache.get(additionalCard.id)!;
+        } else {
+            // console.log(additionalCard.id);
+            const cardCount = processCard(additionalCard, allCards);
+            cardsCache.set(additionalCard.id, cardCount);
+            numCards += cardCount;
+        }
+    }
+    return numCards;
+}
+
+const input = await fs.readFileSync('./input.txt', 'utf-8');
+const cards: readonly Card[] = input.split('\n').map((line) => getCardFromInputLine(line));
+let totalCards = 0;
+for (const card of cards) {
+    totalCards += processCard(card, cards);
+}
+console.log(totalCards);
