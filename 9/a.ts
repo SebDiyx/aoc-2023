@@ -2,41 +2,39 @@ import fs from 'fs';
 
 type Node = {
     val: number;
-    leftParent: Node | null;
-    rightParent: Node | null;
 };
 
-function processRow(rowNodes: Node[]) {
-    console.log(rowNodes);
-
+function processRow(rowNodes: Node[]): number {
     let childRow: Node[] = [];
     rowNodes.forEach((node, i) => {
-        const nextNode = rowNodes[i];
+        const nextNode = rowNodes[i + 1];
         if (nextNode) {
             const diff = nextNode.val - node.val;
             const diffNode: Node = {
                 val: diff,
-                leftParent: node,
-                rightParent: nextNode,
             };
             childRow.push(diffNode);
         }
     });
 
     if (!childRow.every((node) => node.val === 0)) {
-        const finalDiff = processRow(childRow);
+        const diff = processRow(childRow);
+        return diff + childRow.at(-1)!.val;
     }
 
-    // TODO: Return a calculated node
-    return;
+    return childRow.at(-1)!.val;
 }
 
-const input = await fs.readFileSync('./test-input.txt', 'utf-8');
+const input = await fs.readFileSync('./input.txt', 'utf-8');
 const numberRows: Node[][] = input.split('\n').map((line) =>
     line.split(' ').map((num) => ({
         val: parseInt(num),
-        leftParent: null,
-        rightParent: null,
     })),
 );
-processRow(numberRows[0]);
+
+let total = 0;
+for (const row of numberRows) {
+    const diff = processRow(row);
+    total = total + diff + row.at(-1)!.val;
+}
+console.log(total);
