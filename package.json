@@ -1,16 +1,16 @@
 {
-    "name": "aoc-2023",
-    "module": "index.ts",
-    "type": "module",
-    "devDependencies": {
-        "bun-types": "latest",
-        "prettier": "^3.1.0"
-    },
-    "peerDependencies": {
-        "typescript": "^5.0.0"
-    },
-    "dependencies": {},
-    "scripts": {
-        "dev": "bun run --watch"
-    }
+  "name": "aoc-2023",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "bun-types": "latest",
+    "prettier": "^3.1.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": { "ts-heapq": "^1.0.6" },
+  "scripts": {
+    "dev": "bun run --watch"
+  }
 }
