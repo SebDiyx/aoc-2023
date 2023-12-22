@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { cloneDeep } from 'lodash';
 
 type Check = {
     op?: '>' | '<';
@@ -44,12 +45,12 @@ type Ranges = {
     s: [number, number];
 };
 
-function count(ranges: Ranges, name: string) {
+function count(ranges: Ranges, name = 'in') {
     if (name === 'R') return 0;
     if (name === 'A') {
         let product = 1;
         for (const [min, max] of Object.values(ranges)) {
-            product *= max - min + 1;
+            product *= max - min + 1; // Do we need a +1 here?
         }
         return product;
     }
@@ -61,45 +62,35 @@ function count(ranges: Ranges, name: string) {
     let total = 0;
     let breakLoop = false;
     for (const { dest, category, num, op } of checks) {
-        let passingRange: [number, number] | undefined;
-        let failingRange: [number, number] | undefined;
+        let passingRange: [number, number] = [0, 0];
+        let failingRange: [number, number] = [0, 0];
         const [min, max] = ranges[category!];
-        if (op === '>') {
-            passingRange = [Math.max(num! + 1, min), max];
-            failingRange = [min, Math.min(num!, max)];
-        } else if (op === '<') {
+        if (op === '<') {
             passingRange = [min, Math.min(num! - 1, max)];
             failingRange = [Math.max(num!, min), max];
+        } else if (op === '>') {
+            passingRange = [Math.max(num! + 1, min), max];
+            failingRange = [min, Math.min(num!, max)];
         }
 
         if (passingRange![0] <= passingRange![1]) {
-            const newRanges = { ...ranges, [category!]: passingRange }!;
+            const newRanges = cloneDeep(ranges);
+            newRanges[category!] = passingRange;
             total += count(newRanges, dest);
         }
         if (failingRange![0] <= failingRange![1]) {
-            const newRanges = { ...ranges, [category!]: failingRange }!;
-            // total += count(newRanges, fallback.dest);
+            ranges = cloneDeep(ranges);
+            ranges[category!] = failingRange;
         } else {
             breakLoop = true;
             break;
         }
     }
-    if (breakLoop && fallback) {
+    if (!breakLoop && fallback) {
         total += count(ranges, fallback.dest);
     }
 
     return total;
 }
 
-console.log(count(defaultRanges, 'in')); //TODO: Seb remove <--------------
-
-// console.log(res.A); //TODO: Seb remove <--------------
-
-// let total = 0;
-// for (const ranges of res.A) {
-//     total += Object.values(ranges).reduce((total, [min, max]) => {
-//         if (min === 1 && max === 4000) return total;
-//         return total * (max - min);
-//     }, 1);
-// }
-// console.log(total); //TODO: Seb remove <--------------
+console.log(count(defaultRanges)); //TODO: Seb remove <--------------
