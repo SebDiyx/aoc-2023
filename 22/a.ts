@@ -9,6 +9,20 @@ type Brick = {
     supportedBy: Brick[];
 };
 
+function printBricks(bricks: Brick[]) {
+    for (const brick of bricks) {
+        console.log({
+            id: brick.id,
+            xRange: brick.xRange,
+            yRange: brick.yRange,
+            zRange: brick.zRange,
+            supporting: brick.supporting.map((brick) => brick.id),
+            supportedBy: brick.supportedBy.map((brick) => brick.id),
+        });
+    }
+    console.log('==='); //TODO: Seb remove <--------------
+}
+
 function initialiseBricks(input: string): Brick[] {
     let id = 0;
     const bricks = input.split('\n').map((line) => {
@@ -35,7 +49,7 @@ function initialiseBricks(input: string): Brick[] {
         };
         return brick;
     });
-    return bricks.sort((a, b) => a.zRange[0] - b.zRange[0]);
+    return bricks.sort((a, b) => a.zRange[1] - b.zRange[1]);
 }
 
 // Check if a overlaps b
@@ -62,60 +76,30 @@ function doesBrickOverlapOtherBrick(a: Brick, b: Brick): boolean {
 function doesBrickSupportOtherBrick(a: Brick, b: Brick): boolean {
     // a supports b if:
     // - b is directly above a?
-    // - b is within a's x range?
-    // - b is within a's y range?
+    // - b is within a's x range or a is within b's range
 
-    // a = [1, 1]; b = [0, 2] -> true
-    // a = [1, 1]; b = [2, 2] -> false
-
-    const xOverlap =
-        (a.xRange[0] <= b.xRange[0] && b.xRange[0] <= a.xRange[1]) ||
-        (a.xRange[0] <= b.xRange[1] && b.xRange[1] <= a.xRange[1]) ||
-        (b.xRange[0] <= a.xRange[0] && a.xRange[0] <= b.xRange[1]) ||
-        (b.xRange[0] <= a.xRange[1] && a.xRange[1] <= b.xRange[1]);
-
-    const yOverlap =
-        (a.yRange[0] <= b.yRange[0] && b.yRange[0] <= a.yRange[1]) ||
-        (a.yRange[0] <= b.yRange[1] && b.yRange[1] <= a.yRange[1]) ||
-        (b.yRange[0] <= a.yRange[0] && a.yRange[0] <= b.yRange[1]) ||
-        (b.yRange[0] <= a.yRange[1] && a.yRange[1] <= b.yRange[1]);
-
-    return a.zRange[1] === b.zRange[0] - 1 && xOverlap && yOverlap;
+    return a.zRange[1] === b.zRange[0] - 1 && doesBrickOverlapOtherBrick(a, b);
 }
 
 function applyGravity(bricks: Brick[]): Brick[] {
-    // TODO: If this is too inefficent then use for i, for j loops (where i < j)
     // Going bottom upwards
-    for (const brick of bricks) {
+    for (let i = 0; i < bricks.length; i++) {
+        const brick = bricks[i];
+
         // Find all bricks that are below this brick and that overlap it
-        const overlappingBricks = bricks.filter((otherBrick) => {
-            if (otherBrick.id === brick.id) {
-                // Don't check if a brick supports itself
-                return false;
-            }
-
-            if (otherBrick.zRange[0] > brick.zRange[1]) {
-                // If the other brick is below or at an equal level this brick,
-                // then it can't be supported by this brick
-                return false;
-            }
-
-            return doesBrickOverlapOtherBrick(brick, otherBrick);
+        const overlappingBricks = bricks.slice(0, i).filter((lowerBrick) => {
+            return doesBrickOverlapOtherBrick(brick, lowerBrick);
         });
 
         // Out of the overlapping bricks below this one, find the highest one/s
         // This will be the new supporting brick/s
         const maxZ = Math.max(
-            ...overlappingBricks.map((brick) => brick.zRange[1]),
+            ...overlappingBricks.map((overlap) => overlap.zRange[1]),
         );
         const supportingBricks = overlappingBricks.filter(
-            (brick) => brick.zRange[1] === maxZ,
+            (overlap) => overlap.zRange[1] === maxZ,
         );
         if (supportingBricks.length) {
-            for (const supportingBrick of supportingBricks) {
-                brick.supporting.push(supportingBrick);
-                supportingBrick.supportedBy.push(brick);
-            }
             const height = brick.zRange[1] - brick.zRange[0];
             brick.zRange[0] = supportingBricks[0].zRange[1] + 1;
             brick.zRange[1] = brick.zRange[0] + height;
@@ -128,15 +112,16 @@ function applyGravity(bricks: Brick[]): Brick[] {
         }
     }
 
-    return bricks;
+    return bricks.sort((a, b) => a.zRange[1] - b.zRange[1]);
 }
 
 function populateRelations(bricks: Brick[]) {
-    for (const brick of bricks) {
-        for (const otherBrick of bricks) {
-            if (doesBrickSupportOtherBrick(brick, otherBrick)) {
-                brick.supporting.push(otherBrick);
-                otherBrick.supportedBy.push(brick);
+    for (let i = 0; i < bricks.length; i++) {
+        const brick = bricks[i];
+        for (const lowerBrick of bricks.slice(0, i)) {
+            if (doesBrickSupportOtherBrick(lowerBrick, brick)) {
+                lowerBrick.supporting.push(brick);
+                brick.supportedBy.push(lowerBrick);
             }
         }
     }
@@ -146,7 +131,7 @@ const start = Date.now();
 const input = await fs.readFileSync('./input.txt', 'utf-8');
 const bricks = initialiseBricks(input);
 applyGravity(bricks);
-// populateRelations(bricks);
+populateRelations(bricks);
 
 // Find bricks that are either not supporting any bricks
 // Or that are not the sole supporter of any bricks
@@ -163,18 +148,5 @@ const destroyableBricks = bricks.filter((brick) => {
 const end = Date.now();
 const time = end - start;
 console.log(`Time taken: ${time}ms`);
-
-console.log(
-    bricks.slice(0, 10).map((brick) => {
-        return {
-            id: brick.id,
-            xRange: brick.xRange,
-            yRange: brick.yRange,
-            zRange: brick.zRange,
-            supporting: brick.supporting.map((brick) => brick.id),
-            supportedBy: brick.supportedBy.map((brick) => brick.id),
-        };
-    }),
-);
 
 console.log(destroyableBricks.length); //TODO: Seb remove <--------------
