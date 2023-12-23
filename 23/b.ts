@@ -113,7 +113,7 @@ function buildGraph() {
     // Find each node of sds graph (all the walkable positions)
     for (let y = 0; y < grid.length; y++) {
         for (let x = 0; x < grid[0].length; x++) {
-            if (grid[y][x] !== '#') {
+            if (grid[y][x] !== '#' && isJunction(grid, x, y)) {
                 const node: GraphNode = {
                     x,
                     y,
