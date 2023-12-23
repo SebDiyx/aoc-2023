@@ -1,11 +1,16 @@
 import fs from 'fs';
+import { cloneDeep } from 'lodash';
 
 type GraphNode = {
+    id: string;
     x: number;
     y: number;
-    next: { node: GraphNode; dist: number }[];
-    prev: { node: GraphNode; dist: number }[];
+    connections: { node: GraphNode; dist: number }[];
 };
+
+function printGrid(grid: string[][]) {
+    console.log(grid.map((line) => line.join('')).join('\n'));
+}
 
 function findStartPoint(grid: string[][]) {
     for (let x = 0; x < grid[0].length; x++) {
@@ -25,53 +30,13 @@ function findEndPoint(grid: string[][]) {
     throw new Error('No end point found');
 }
 
-// const cache = new Map<string, Omit<StackItem, 'path' | 'pathLength'>[]>();
-// function getNextPositions(
-//     grid: string[][],
-//     item: Omit<StackItem, 'path' | 'pathLength'>,
-// ) {
-//     const { x, y } = item;
-
-//     if (cache.has(`${x},${y}`)) {
-//         return cache.get(`${x},${y}`)!;
-//     }
-
-//     const nextPositions: Omit<StackItem, 'path' | 'pathLength'>[] = [];
-//     for (const [ndx, ndy] of [
-//         [0, 1],
-//         [1, 0],
-//         [0, -1],
-//         [-1, 0],
-//     ]) {
-//         /**
-//          * paths (.), forest (#), and steep slopes (^, >, v, and <).
-//          */
-
-//         // Don't go back the way we came
-//         const newPos = { x: x + ndx, y: y + ndy };
-
-//         // Only add if the new position is within the grid
-
-//         if (
-//             newPos.x >= 0 &&
-//             newPos.y >= 0 &&
-//             newPos.x < grid[0].length &&
-//             newPos.y < grid.length &&
-//             grid[newPos.y][newPos.x] !== '#'
-//         ) {
-//             nextPositions.push({
-//                 x: newPos.x,
-//                 y: newPos.y,
-//             });
-//         }
-//     }
-
-//     cache.set(`${x},${y}`, nextPositions);
-
-//     return nextPositions;
-// }
-
 function isJunction(grid: string[][], x: number, y: number) {
+    const startPoint = findStartPoint(grid);
+    if (x === startPoint.x && y === startPoint.y) return true;
+
+    const endPoint = findEndPoint(grid);
+    if (x === endPoint.x && y === endPoint.y) return true;
+
     let count = 0;
     for (const [ndx, ndy] of [
         [0, 1],
@@ -95,126 +60,112 @@ function isJunction(grid: string[][], x: number, y: number) {
 
 function buildGraph() {
     const startPoint = findStartPoint(grid);
-    const endPoint = findEndPoint(grid);
     const graphNodeMap: Map<string, GraphNode> = new Map();
-    graphNodeMap.set(`${startPoint.x},${startPoint.y}`, {
-        x: startPoint.x,
-        y: startPoint.y,
-        next: [],
-        prev: [],
-    });
-    graphNodeMap.set(`${endPoint.x},${endPoint.y}`, {
-        x: endPoint.x,
-        y: endPoint.y,
-        next: [],
-        prev: [],
-    });
 
-    // Find each node of sds graph (all the walkable positions)
+    // Find each junction point of the grid (each junction is a node of our graph)
     for (let y = 0; y < grid.length; y++) {
         for (let x = 0; x < grid[0].length; x++) {
             if (grid[y][x] !== '#' && isJunction(grid, x, y)) {
                 const node: GraphNode = {
+                    id: `${x},${y}`,
                     x,
                     y,
-                    next: [],
-                    prev: [],
+                    connections: [],
                 };
                 graphNodeMap.set(`${x},${y}`, node);
             }
         }
     }
 
-    // Connect each node to its neighbours
+    // Connect each junction to its nearest junction in each direction
     for (const node of graphNodeMap.values()) {
-        const { x, y } = node;
-        for (const [ndx, ndy] of [
-            [0, 1],
-            [1, 0],
-            [0, -1],
-            [-1, 0],
-        ]) {
-            const newPos = { x: x + ndx, y: y + ndy };
-            if (graphNodeMap.has(`${newPos.x},${newPos.y}`)) {
-                const nextNode = graphNodeMap.get(`${newPos.x},${newPos.y}`)!;
-                node.next.push({
-                    node: nextNode,
-                    dist: 1,
+        const { x: nodeX, y: nodeY } = node;
+
+        // Perform a BFS to find the nearest node in each direction
+        const queue: { x: number; y: number; path: string[] }[] = [
+            { x: nodeX, y: nodeY, path: [] },
+        ];
+        while (queue.length) {
+            const { x, y, path } = queue.shift()!;
+            path.push(`${x},${y}`);
+
+            // We've reached another node, so connect this node to that node
+            if (isJunction(grid, x, y) && `${x},${y}` !== `${nodeX},${nodeY}`) {
+                const connection = graphNodeMap.get(`${x},${y}`)!;
+                node.connections.push({
+                    node: connection,
+                    dist: path.length - 1,
                 });
-                nextNode.prev.push({ node, dist: 1 });
+                continue;
             }
-            node.prev.push({ node, dist: 1 });
+
+            for (const [ndx, ndy] of [
+                [0, 1],
+                [1, 0],
+                [0, -1],
+                [-1, 0],
+            ]) {
+                const newPos = { x: x + ndx, y: y + ndy };
+                if (
+                    newPos.x >= 0 &&
+                    newPos.y >= 0 &&
+                    newPos.x < grid[0].length &&
+                    newPos.y < grid.length &&
+                    grid[newPos.y][newPos.x] !== '#' &&
+                    !path.includes(`${newPos.x},${newPos.y}`)
+                ) {
+                    queue.push({
+                        x: newPos.x,
+                        y: newPos.y,
+                        path: [...path],
+                    });
+                }
+            }
         }
     }
-    return graphNodeMap.get(`${startPoint.x},${startPoint.y}`)!;
+    return {
+        start: graphNodeMap.get(`${startPoint.x},${startPoint.y}`)!,
+        graphNodeMap,
+    };
 }
 
 function longestPath(node: GraphNode) {
-    const { x: endX, y: endY } = findEndPoint(grid);
-    const queue: { node: GraphNode; path: string[] }[] = [{ node, path: [] }];
+    const endPoint = findEndPoint(grid);
+
+    const queue: { node: GraphNode; path: string[]; dist: number }[] = [
+        { node, path: [], dist: 0 },
+    ];
     let longest = 0;
     while (queue.length) {
-        const { node, path } = queue.shift()!;
-        if (path.includes(`${node.x},${node.y}`)) {
-            continue;
-        }
+        const { node, path, dist } = queue.shift()!;
+
         path.push(`${node.x},${node.y}`);
 
-        if (node.x === endX && node.y === endY) {
-            if (path.length > longest) {
-                console.log(path.length);
-                longest = path.length;
+        if (node.x === endPoint.x && node.y === endPoint.y) {
+            if (dist > longest) {
+                console.log(dist);
+                longest = dist;
             }
             continue;
         }
 
-        for (const { node: nextNode, dist: nextDist } of node.next) {
-            queue.push({ node: nextNode, path: [...path] });
+        for (const connection of node.connections) {
+            if (path.includes(connection.node.id)) continue;
+
+            queue.push({
+                node: connection.node,
+                path: [...path],
+                dist: dist + connection.dist,
+            });
         }
     }
     return longest;
 }
-// const queue: { x: number; y: number }[] = [startPoint];
-// const visited = new Set<string>();
-// while (queue.length) {
-//     const { x, y } = queue.shift()!;
-
-//     // Already been here and we're not allowed to go back to exactly the same place
-//     if (visited.includes(`${x},${y}`)) {
-//         continue;
-//     }
-//     path.push(`${x},${y}`);
-
-//     // Reached the end
-//     if (x === endPoint.x && y === endPoint.y) {
-//         if (pathLength > longest) {
-//             console.log(pathLength);
-//             longest = pathLength;
-//         }
-//         continue;
-//     }
-
-//     const next = getNextPositions(grid, { x, y }).filter(
-//         (pos) => !(pos.x === x && pos.y === y),
-//     );
-//     for (const pos of next) {
-//         queue.push({
-//             ...pos,
-//             pathLength: pathLength + 1,
-//             path: [...path],
-//         });
-//     }
-// }
-// return longest;
 
 const input = await fs.readFileSync('./input.txt', 'utf-8');
 const grid = input.split('\n').map((line) => line.split(''));
-const node = buildGraph();
+const { start } = buildGraph();
 
-console.log('DONE', node);
+const longest = longestPath(start);
 
-console.log(longestPath(node));
-console.log('DONE');
-
-// populateGrid(grid, pathLengths.at(-1)!);
-// printGrid(grid);
+console.log('DONE', longest);
