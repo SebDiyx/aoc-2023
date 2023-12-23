@@ -132,7 +132,7 @@ function willBrickFall(brick: Brick, removedBrick: Brick): boolean {
 }
 
 const start = Date.now();
-const input = await fs.readFileSync('./test-input.txt', 'utf-8');
+const input = await fs.readFileSync('./input.txt', 'utf-8');
 const bricks = initialiseBricks(input);
 applyGravity(bricks);
 populateRelations(bricks);
@@ -148,22 +148,25 @@ for (const brick of bricks) {
         continue;
     }
 
-    const stack: Brick[] = [brick];
-    let fallenBrickIds: number[] = [brick.id];
-    while (stack.length) {
-        const currBrick = stack.pop()!;
+    const queue: Brick[] = [brick];
+    const fallenBrickIds = new Set<number>([brick.id]);
+    while (queue.length) {
+        const currBrick = queue.shift()!;
         for (const supported of currBrick.supporting) {
-            if (
-                !supported.supportedBy.filter(
-                    (brick) => !fallenBrickIds.includes(brick.id),
-                ).length
-            )
-                continue;
-            fallenBrickIds.push(supported.id);
-            stack.push(supported);
+            const isBlockSupported = supported.supportedBy.some(
+                (support) => !fallenBrickIds.has(support.id),
+            );
+            if (!isBlockSupported) {
+                fallenBrickIds.add(supported.id);
+                queue.push(supported);
+            }
         }
     }
-    totalBricksThatFell += fallenBrickIds.length;
+
+    // console.log(fallenBrickIds);
+    // printBricks([brick]);
+
+    totalBricksThatFell += fallenBrickIds.size - 1;
 }
 
 const end = Date.now();
