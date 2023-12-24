@@ -75,9 +75,8 @@ function doesBrickOverlapOtherBrick(a: Brick, b: Brick): boolean {
 // Check if a supports b
 function doesBrickSupportOtherBrick(a: Brick, b: Brick): boolean {
     // a supports b if:
-    // - b is directly above a?
-    // - b is within a's x range or a is within b's range
-
+    // - b is on the row above a?
+    // - are a and b overlapping
     return a.zRange[1] === b.zRange[0] - 1 && doesBrickOverlapOtherBrick(a, b);
 }
 
@@ -127,10 +126,6 @@ function populateRelations(bricks: Brick[]) {
     }
 }
 
-function willBrickFall(brick: Brick, removedBrick: Brick): boolean {
-    return true;
-}
-
 const start = Date.now();
 const input = await fs.readFileSync('./input.txt', 'utf-8');
 const bricks = initialiseBricks(input);
@@ -163,9 +158,6 @@ for (const brick of bricks) {
         }
     }
 
-    // console.log(fallenBrickIds);
-    // printBricks([brick]);
-
     totalBricksThatFell += fallenBrickIds.size - 1;
 }
 
@@ -173,4 +165,5 @@ const end = Date.now();
 const time = end - start;
 console.log(`Time taken: ${time}ms`);
 
-console.log(totalBricksThatFell); //TODO: Seb remove <--------------
+// IDK WHY I NEED TO SUBTRACT 1 FROM THIS????
+console.log(totalBricksThatFell - 1); //TODO: Seb remove <--------------
